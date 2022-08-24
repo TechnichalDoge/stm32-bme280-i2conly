@@ -63,7 +63,7 @@
 /*Enable the macro BME280_API to use this support file */
 /*----------------------------------------------------------------------------*
 *  The following functions are used for reading and writing of
-*	sensor data using I2C or SPI communication
+*	sensor data using I2C communication
 *----------------------------------------------------------------------------*/
 #ifdef BME280_API
 /*	\Brief: The function is used as I2C bus read
@@ -84,7 +84,7 @@ s8 BME280_I2C_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt);
  */
 s8 BME280_I2C_bus_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt);
 /*
- * \Brief: SPI init routine
+ * \Brief: I2C init routine
 */
 s8 I2C_routine(void);
 #endif
@@ -133,7 +133,7 @@ s32 bme280_data_readout_template(void)
 	s32 com_rslt = ERROR;
 
  /*********************** START INITIALIZATION ************************/
-  /*	Based on the user need configure I2C or SPI interface.
+  /*	Configure I2C interface.
   *	It is example code to explain how to use the bme280 API*/
  	#ifdef BME280_API
 	I2C_routine();
