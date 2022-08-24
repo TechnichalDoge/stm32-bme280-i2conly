@@ -57,7 +57,6 @@
 #include "i2c.h"
 #include "usart.h"
 #include "gpio.h"
-#include "spi.h"
 #include "bme280.h"
 
 #define BME280_API
@@ -84,29 +83,12 @@ s8 BME280_I2C_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt);
  *	\param cnt : The no of byte of data to be write
  */
 s8 BME280_I2C_bus_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt);
-/*	\Brief: The function is used as SPI bus write
- *	\Return : Status of the SPI write
- *	\param dev_addr : The device address of the sensor
- *	\param reg_addr : Address of the first register, will data is going to be written
- *	\param reg_data : It is a value hold in the array,
- *		will be used for write the value into the register
- *	\param cnt : The no of byte of data to be write
- */
-s8 BME280_SPI_bus_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt);
-/*	\Brief: The function is used as SPI bus read
- *	\Return : Status of the SPI read
- *	\param dev_addr : The device address of the sensor
- *	\param reg_addr : Address of the first register, will data is going to be read
- *	\param reg_data : This data read from the sensor, which is hold in an array
- *	\param cnt : The no of byte of data to be read */
-s8 BME280_SPI_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt);
 /*
- * \Brief: SPI/I2C init routine
+ * \Brief: SPI init routine
 */
 s8 I2C_routine(void);
-s8 SPI_routine(void);
 #endif
-/********************End of I2C/SPI function declarations***********************/
+/********************End of I2C function declarations***********************/
 /*	Brief : The delay routine
  *	\param : delay in ms
 */
@@ -154,8 +136,7 @@ s32 bme280_data_readout_template(void)
   /*	Based on the user need configure I2C or SPI interface.
   *	It is example code to explain how to use the bme280 API*/
  	#ifdef BME280_API
-	//I2C_routine();
-	SPI_routine();
+	I2C_routine();
 	#endif
 /*--------------------------------------------------------------------------*
  *  This function used to assign the value/reference of
@@ -286,10 +267,6 @@ return com_rslt;
 }
 
 #ifdef BME280_API
-#define SPI_READ	0x80
-#define SPI_WRITE	0x7F
-#define BME280_DATA_INDEX	1
-#define BME280_ADDRESS_INDEX	2
 /*--------------------------------------------------------------------------*
 *	The following function is used to map the I2C bus read, write, delay and
 *	device address with global structure bme280
@@ -310,42 +287,12 @@ s8 I2C_routine(void) {
 	return BME280_INIT_VALUE;
 }
 
-/*---------------------------------------------------------------------------*
- * The following function is used to map the SPI bus read, write and delay
- * with global structure bme280
- *--------------------------------------------------------------------------*/
-s8 SPI_routine(void) {
-/*--------------------------------------------------------------------------*
- *  By using bme280 the following structure parameter can be accessed
- *	Bus write function pointer: BME280_WR_FUNC_PTR
- *	Bus read function pointer: BME280_RD_FUNC_PTR
- *	Delay function pointer: delay_msec
- *--------------------------------------------------------------------------*/
-
-	bme280.bus_write = BME280_SPI_bus_write;
-	bme280.bus_read = BME280_SPI_bus_read;
-	bme280.delay_msec = BME280_delay_msek;
-
-/*--------------------------------------------------------------------------*
- *  Drop the chip select pin to low - this tells the BME280 to
- *  use SPI mode. It will not respond to I2C commands until you
- *  reset the power to it.
- */
-	HAL_GPIO_WritePin(GPIOB, SPI2_CS1_Pin, GPIO_PIN_RESET);
-	HAL_Delay(10);
-	HAL_GPIO_WritePin(GPIOB, SPI2_CS1_Pin, GPIO_PIN_SET);
-
-	return BME280_INIT_VALUE;
-}
-
-/************** I2C/SPI buffer length ******/
+/************** I2C buffer length ******/
 
 #define	I2C_BUFFER_LEN 28
-#define SPI_BUFFER_LEN 28
 
 /*-------------------------------------------------------------------*
-*	This is a sample code for read and write the data by using I2C/SPI
-*	Use either I2C or SPI based on your need
+*	This is a sample code for read and write the data by using I2C
 *	The device address defined in the bme280.h file
 *-----------------------------------------------------------------------*/
  /*	\Brief: The function is used as I2C bus write
@@ -416,78 +363,6 @@ s8 BME280_I2C_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
 	return (s8)iError;
 }
 
-/*	\Brief: The function is used as SPI bus read
- *	\Return : Status of the SPI read
- *	\param dev_addr : The device address of the sensor
- *	\param reg_addr : Address of the first register, will data is going to be read
- *	\param reg_data : This data read from the sensor, which is hold in an array
- *	\param cnt : The no of byte of data to be read
- */
-s8 BME280_SPI_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
-{
-	HAL_StatusTypeDef status = HAL_OK;
-	s32 iError=BME280_INIT_VALUE;
-	u8 txarray[SPI_BUFFER_LEN]={0,};
-	u8 rxarray[SPI_BUFFER_LEN] = {0,};
-	u8 stringpos;
-	/*	For the SPI mode only 7 bits of register addresses are used.
-	The MSB of register address is declared the bit what functionality it is
-	read/write (read as 1/write as BME280_INIT_VALUE)*/
-	txarray[BME280_INIT_VALUE] = reg_addr|SPI_READ;/*read routine is initiated register address is mask with 0x80*/
-
-	HAL_GPIO_WritePin( GPIOB, SPI2_CS1_Pin, GPIO_PIN_RESET );
-	status = HAL_SPI_TransmitReceive( &hspi2, (uint8_t *)(&txarray), (uint8_t *)(&rxarray), cnt+1, 5);
-	while( hspi2.State == HAL_SPI_STATE_BUSY ) {};
-	HAL_GPIO_WritePin( GPIOB, SPI2_CS1_Pin, GPIO_PIN_SET );
-	HAL_Delay(5); // since i can't find a buffer flushing command
-	for (stringpos = BME280_INIT_VALUE; stringpos < cnt; stringpos++) {
-		*(reg_data + stringpos) = rxarray[stringpos+BME280_DATA_INDEX];
-	}
-
-    if (status != HAL_OK)
-    {
-    	// The BME280 API calls for 0 return value as a success, and -1 returned as failure
-    	iError = (-1);
-    }
-	return (s8)iError;
-}
-
-/*	\Brief: The function is used as SPI bus write
- *	\Return : Status of the SPI write
- *	\param dev_addr : The device address of the sensor
- *	\param reg_addr : Address of the first register, where data is to be written
- *	\param reg_data : It is a value hold in the array,
- *		will be used for write the value into the register
- *	\param cnt : The no of byte of data to be write
- */
-s8 BME280_SPI_bus_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
-{
-	HAL_StatusTypeDef status = HAL_OK;
-	s32 iError = BME280_INIT_VALUE;
-	u8 array[SPI_BUFFER_LEN * BME280_ADDRESS_INDEX];
-	u8 stringpos = BME280_INIT_VALUE;
-	u8 index = BME280_INIT_VALUE;
-	for (stringpos = BME280_INIT_VALUE; stringpos < cnt; stringpos++) {
-		/* the operation of (reg_addr++)&0x7F done as per the
-		SPI communication protocol specified in the data sheet*/
-		index = stringpos * BME280_ADDRESS_INDEX;
-		array[index] = (reg_addr++) & SPI_WRITE;
-		//printf("%X ", array[stringpos]);
-		array[index + BME280_DATA_INDEX] = *(reg_data + stringpos);
-	}
-
-	HAL_GPIO_WritePin( GPIOB, SPI2_CS1_Pin, GPIO_PIN_RESET );
-	status = HAL_SPI_Transmit( &hspi2, (uint8_t*)(&array), cnt*2, 100);
-	while( hspi2.State == HAL_SPI_STATE_BUSY ) {};
-	HAL_GPIO_WritePin( GPIOB, SPI2_CS1_Pin, GPIO_PIN_SET );
-
-    if (status != HAL_OK)
-    {
-    	// The BME280 API calls for 0 return value as a success, and -1 returned as failure
-    	iError = (-1);
-    }
-	return (s8)iError;
-}
 
 /*	Brief : The delay routine
  *	\param : delay in ms
