@@ -1,4 +1,5 @@
 # stm32-bme280
+I removed the spi stuff just so i could understand it better for my application.
 Bosch BME280 driver for STM32 using HAL<br>
 SPI or I2C methods available
 
